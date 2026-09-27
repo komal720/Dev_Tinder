@@ -2,29 +2,42 @@ const express = require('express');
 
 const app = express();
 
-
-
-const {adminAuth,userAuth}=require("./middlewares/auth");
-
-
-app.use("/admin",adminAuth);
-app.use("/user",userAuth);
-
-
-app.get("/user",(req,res)=>{
+app.get("/getuserdata",(req,res)=>{
+    throw new Error("aswqzx");
     res.send("user data");
 
 });
 
-app.get("/admin/getalldata",(req,res)=>{
-    res.send("all data");
-    
+app.use("/",(err,req,res,next)=>{
+    if(err){
+        res.status(500).send("something went wrong");
+
+    }
 });
 
-app.get("/admin/deleteuser",(req,res)=>{
-    res.send("delete data");
+
+
+// const {adminAuth,userAuth}=require("./middlewares/auth");
+
+
+// app.use("/admin",adminAuth);
+// app.use("/user",userAuth);
+
+
+// app.get("/user",(req,res)=>{
+//     res.send("user data");
+
+// });
+
+// app.get("/admin/getalldata",(req,res)=>{
+//     res.send("all data");
     
-});
+// });
+
+// app.get("/admin/deleteuser",(req,res)=>{
+//     res.send("delete data");
+    
+// });
 //GET /user
 
 // app.use("/",(req,res)=>{
