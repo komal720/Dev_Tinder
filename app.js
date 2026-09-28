@@ -1,19 +1,53 @@
-const express = require('express');
+const express = require("express");
 
+
+const connectDB=require ("./config/database");
 const app = express();
 
-app.get("/getuserdata",(req,res)=>{
-    throw new Error("aswqzx");
-    res.send("user data");
+const User = require("./models/user");
+ 
+
+app.use(express.json());
+
+app.post("/signup", async (req,res)=>{
+console.log(req.body);
+
+
+    const user = new User(res.body);
+    
+
+   try{
+     await user.save();
+    res.send("user added");
+
+   }catch(err){
+    res.status(400).send("error the user"+err.message);
+    
+   }
 
 });
 
-app.use("/",(err,req,res,next)=>{
-    if(err){
-        res.status(500).send("something went wrong");
 
-    }
-});
+
+
+
+
+
+
+
+
+// app.get("/getuserdata",(req,res)=>{
+//     throw new Error("aswqzx");
+//     res.send("user data");
+
+// });
+
+// app.use("/",(err,req,res,next)=>{
+//     if(err){
+//         res.status(500).send("something went wrong");
+
+//     }
+// });
 
 
 
@@ -89,7 +123,18 @@ app.use("/",(err,req,res,next)=>{
 // });
 
 
-app.listen(3000,()=>{
+
+connectDB()
+    .then(() => {
+        console.log("database connection");
+        app.listen(3000,()=>{
     console.log("server is succesfully listening ")
 }); 
+
+    })
+    .catch(err => {
+        
+        console.error("database not connection");
+        console.error(err.message);
+    });
 
