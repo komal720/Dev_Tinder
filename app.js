@@ -28,7 +28,7 @@ console.log(req.body);
 });
 //get user by email
 app.get("/user",async (req,res)=>{
-    const userEmail=req.body.emailId;
+    const userEmail = req.query.emailId;
 
 
     try{
