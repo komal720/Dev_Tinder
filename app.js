@@ -1,27 +1,45 @@
 const express = require("express");
 
-
 const connectDB=require ("./config/database");
 const app = express();
 
 const User = require("./models/user");
- 
 
+ const { validateSignUpData } = require("./utils/validation");
+ const bcrypt=require("bcrypt");
 app.use(express.json());
 
 app.post("/signup", async (req,res)=>{
-console.log(req.body);
+    try{
+
+    //validates of data
+    validateSignUpData(req);
+    const { firstName,
+        lastName,
+        emailId,password}=req.body;
+
+        //encrypt the pw
+        const passwordHash = await bcrypt.hash(password, 10);
+console.log(passwordHash);
 
 
-    const user = new User(req.body);
+//console.log(req.body);
+
+//creating new instance of user model
+    const user = new User({
+        firstName,
+        lastName,
+        emailId,
+        password:passwordHash,
+    }
+    );
 
 
-   try{
      await user.save();
     res.send("user added");
 
    }catch(err){
-    res.status(400).send("error the user"+err.message);
+    res.status(400).send("ERROR:"+err.message);
     
    }
 
@@ -89,28 +107,45 @@ app.delete("/user", async (req, res) => {
 
 // update data of user
 
+// Update user using emailId
+
 app.patch("/user", async (req, res) => {
-    const userId = req.body.userId;
-    const data = req.body;
+    const { userId, ...data } = req.body;
 
     try {
+        const ALLOWED_UPDATES = [
+            "gender",
+            "photoUrl",
+            "skills"
+        ];
+
+        const isUpdateAllowed = Object.keys(data).every((key) =>
+            ALLOWED_UPDATES.includes(key)
+        );
+
+        if (!isUpdateAllowed) {
+            return res.status(400).send("Update not allowed");
+        }
+
         const user = await User.findByIdAndUpdate(
             userId,
             data,
-            { new: true }
+            {
+                new: true,
+                runValidators: true
+            }
         );
 
         if (!user) {
-            return res.status(404).send("user not found");
+            return res.status(404).send("User not found");
         }
 
         res.send(user);
+
     } catch (err) {
-        res.status(400).send("something wrong");
+        res.status(400).send("Something went wrong: " + err.message);
     }
 });
-
-
 // app.get("/getuserdata",(req,res)=>{
 //     throw new Error("aswqzx");
 //     res.send("user data");
