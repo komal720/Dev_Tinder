@@ -1,49 +1,133 @@
 const express = require("express");
+const connectDB = require("./config/database");
+const User = require("./models/user");
+const { validateSignUpData } = require("./utils/validation");
+const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 
-const connectDB=require ("./config/database");
 const app = express();
 
-const User = require("./models/user");
-
- const { validateSignUpData } = require("./utils/validation");
- const bcrypt=require("bcrypt");
 app.use(express.json());
+app.use(cookieParser());
 
-app.post("/signup", async (req,res)=>{
-    try{
 
-    //validates of data
-    validateSignUpData(req);
-    const { firstName,
-        lastName,
-        emailId,password}=req.body;
+app.post("/signup", async (req, res) => {
+    try {
+        // Validate signup data
+        validateSignUpData(req);
 
-        //encrypt the pw
+        const {
+            firstName,
+            lastName,
+            emailId,
+            password
+        } = req.body;
+
+        // Encrypt password
         const passwordHash = await bcrypt.hash(password, 10);
-console.log(passwordHash);
 
+        console.log(passwordHash);
 
-//console.log(req.body);
+        // Create user
+        const user = new User({
+            firstName,
+            lastName,
+            emailId,
+            password: passwordHash
+        });
 
-//creating new instance of user model
-    const user = new User({
-        firstName,
-        lastName,
-        emailId,
-        password:passwordHash,
+        await user.save();
+
+        res.send("user added");
+
+    } catch (err) {
+
+        // Duplicate email
+        if (err.code === 11000) {
+            return res.status(400).send("Email already exists");
+        }
+
+        res.status(400).send("ERROR: " + err.message);
     }
-    );
+});
 
 
-     await user.save();
-    res.send("user added");
 
-   }catch(err){
-    res.status(400).send("ERROR:"+err.message);
+app.post("/login", async (req, res) => {
+    try {
+        const { emailId, password } = req.body;
+
+        const user = await User.findOne({ emailId });
+
+        if (!user) {
+            throw new Error("EmailId not present");
+        }
+
+        const isPasswordValid = await bcrypt.compare(
+            password,
+            user.password
+        );
+
+        if (!isPasswordValid) {
+            throw new Error("Invalid password");
+        }
+
+        const token = jwt.sign(
+            { _id: user._id },
+            "DEV#@!infw%$87"
+        );
+
+        console.log(token);
+
+        res.cookie("token", token);
+        res.send("Login successful");
+
+    } catch (err) {
+        res.status(400).send("ERROR: " + err.message);
+    }
+});
+
+
+app.get ("/profile",async (req,res)=>{
+    const cookies=req.cookies;
+
+    const {token}=cookies;
+
+    //validate my token
+
+   
+    const  decodedMessage = await jwt.verify(token,"DEV#@!infw%$87");
     
-   }
+ 
+
+    const{_id}=decodedMessage;
+    console.log("logged in user"+_id);
+
+    const user = await User.findById(_id);
+
+    res.send(user);
+
+
+
+    
+
+    // console.log(cookies);
+    // res.send("Reading cookie")
 
 });
+
+
+
+
+
+
+
+
+
+
+
+
 //get user by email
 app.get("/user",async (req,res)=>{
     const userEmail = req.query.emailId;
@@ -61,13 +145,7 @@ app.get("/user",async (req,res)=>{
             res.send(user);
 
         }
-        // if(user.length===0){
-        //     res.status(404).send("User not found");
-
-        // }else{
-        // res.send(user);
-        // }
-
+      
     }
     catch (err){
         res.status(400).send("something wrong");
@@ -87,7 +165,7 @@ app.get("/feed",async(req,res)=>{
     }
 
 });
-
+// delete a user from the database
 app.delete("/user", async (req, res) => {
     const userId = req.body.userId;
 
@@ -140,111 +218,19 @@ app.patch("/user", async (req, res) => {
             return res.status(404).send("User not found");
         }
 
+        
         res.send(user);
 
     } catch (err) {
         res.status(400).send("Something went wrong: " + err.message);
     }
 });
-// app.get("/getuserdata",(req,res)=>{
-//     throw new Error("aswqzx");
-//     res.send("user data");
-
-// });
-
-// app.use("/",(err,req,res,next)=>{
-//     if(err){
-//         res.status(500).send("something went wrong");
-
-//     }
-// });
-
-
-
-// const {adminAuth,userAuth}=require("./middlewares/auth");
-
-
-// app.use("/admin",adminAuth);
-// app.use("/user",userAuth);
-
-
-// app.get("/user",(req,res)=>{
-//     res.send("user data");
-
-// });
-
-// app.get("/admin/getalldata",(req,res)=>{
-//     res.send("all data");
-    
-// });
-
-// app.get("/admin/deleteuser",(req,res)=>{
-//     res.send("delete data");
-    
-// });
-//GET /user
-
-// app.use("/",(req,res)=>{
-//   //  res.send("handling");
-// next();
-
-// });
-
-// app.use("/user",(req,res,next)=>{
-//     console.log("handling the route");
-//     next();
-
-// },[
-// (req,res,next)=>{
-//     console.log("handling the route 1");
-//     next();
-    
-// },
-// (req,res,next)=>{
-//     console.log("handling the route 1");
-//    res.send("1st response");
-    
-// }],
-// )
-
-// app.get("/user", (req, res) => {
-//     res.send({
-//         first: "komal",
-//         last: "pandey"
-//     });
-// });
-
-// app.post("/user",(req,res)=>{
-//     res.send("data successfully");
-
-
-// });
-// app.delete("/user",(req,res)=>{
-//     res.send("delete data");
-
-// });
-
-// app.patch("/user1", (req, res) => {
-//     res.send("test");
-// });
-// app.use("/hello",(req,res) =>{
-//     res.send("hi  from the server");
-
-// });
-
-
 
 connectDB()
     .then(() => {
         console.log("database connection");
-        app.listen(3000,()=>{
-    console.log("server is succesfully listening ")
-}); 
 
+        app.listen(3000, () => {
+            console.log("server is succesfully listening");
+        });
     })
-    .catch(err => {
-        
-        console.error("database not connection");
-        console.error(err.message);
-    });
-
