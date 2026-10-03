@@ -8,9 +8,11 @@ const AuthRouter = express.Router();
 
 
 // ================= SIGNUP =================
+
 AuthRouter.post("/signup", async (req, res) => {
     try {
-        validateSignUpData(req);
+        console.log("1. Request received");
+        console.log(req.body);
 
         const {
             firstName,
@@ -19,8 +21,11 @@ AuthRouter.post("/signup", async (req, res) => {
             password
         } = req.body;
 
-        // Encrypt password
+        console.log("2. Before bcrypt");
+
         const passwordHash = await bcrypt.hash(password, 10);
+
+        console.log("3. Bcrypt successful");
 
         const user = new User({
             firstName,
@@ -29,11 +34,17 @@ AuthRouter.post("/signup", async (req, res) => {
             password: passwordHash
         });
 
+        console.log("4. User object created");
+
         await user.save();
 
-        res.send("user added");
+        console.log("5. User saved");
+
+        res.send("User added successfully");
 
     } catch (err) {
+        console.log("SIGNUP ERROR:", err);
+        console.log(err.stack);
 
         if (err.code === 11000) {
             return res.status(400).send("Email already exists");
@@ -45,6 +56,7 @@ AuthRouter.post("/signup", async (req, res) => {
 
 
 // ================= LOGIN =================
+
 AuthRouter.post("/login", async (req, res) => {
     try {
 
@@ -73,8 +85,6 @@ AuthRouter.post("/login", async (req, res) => {
             "DEV#@!infw%$87"
         );
 
-        console.log(token);
-
         // Store token in cookie
         res.cookie("token", token);
 
@@ -83,6 +93,18 @@ AuthRouter.post("/login", async (req, res) => {
     } catch (err) {
         res.status(400).send("ERROR: " + err.message);
     }
+});
+
+
+// ================= LOGOUT =================
+
+AuthRouter.post("/logout", (req, res) => {
+
+    res.cookie("token", null, {
+        expires: new Date(Date.now())
+    });
+
+    res.send("Logout successfully");
 });
 
 

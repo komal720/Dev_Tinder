@@ -6,7 +6,7 @@ const userAuth = async (req, res, next) => {
         const { token } = req.cookies;
 
         if (!token) {
-            throw new Error("Token is not valid!!!");
+            return res.status(401).send("Please login");
         }
 
         const decodedObj = jwt.verify(
@@ -14,12 +14,10 @@ const userAuth = async (req, res, next) => {
             "DEV#@!infw%$87"
         );
 
-        const { _id } = decodedObj;
-
-        const user = await User.findById(_id);
+        const user = await User.findById(decodedObj._id);
 
         if (!user) {
-            throw new Error("User not found");
+            return res.status(401).send("User not found");
         }
 
         req.user = user;
@@ -27,10 +25,9 @@ const userAuth = async (req, res, next) => {
         next();
 
     } catch (err) {
-        res.status(400).send("Error: " + err.message);
+        console.log("AUTH ERROR:", err.message);
+        res.status(401).send("ERROR: " + err.message);
     }
 };
 
-module.exports = {
-    userAuth,
-};
+module.exports = userAuth;
