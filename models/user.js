@@ -1,91 +1,88 @@
+
 const mongoose = require("mongoose");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
     firstName: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
+      trim: true,
     },
 
     lastName: {
-        type: String,
+      type: String,
+      trim: true,
     },
 
     emailId: {
-        type: String,
-        required: true,
-        unique: true,
-        isLowercase: "true",
-        unique: "true",
-        validator(value) {
-            if (!validator.isEmail(value)) {
-                throw new Error("invalid")
-            }
-        }
-
-
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      validate: {
+        validator: function (value) {
+          return validator.isEmail(value);
+        },
+        message: "Please enter a valid email address",
+      },
     },
 
     password: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
     },
 
     age: {
-        type: Number,
-        min: 18,
+      type: Number,
+      min: 18,
     },
 
     gender: {
-        type: String,
-
-        enum:{
-            values:["male", "female", "other"],
-            message:'{VALUE} is not a valid gendr type',
-
-        },
-        // validate(value) {
-        //     if (!["male", "female", "other"].includes(value)) {
-        //         throw new Error("Gender data is not valid");
-        //     }
-        // },
+      type: String,
+      enum: {
+        values: ["male", "female", "other"],
+        message: "{VALUE} is not a valid gender type",
+      },
     },
 
     photoUrl: {
-        type: String,
+      type: String,
+      default: "https://placehold.co/200x200",
     },
 
     about: {
-        type: String,
-        default: "this is default photo",
+      type: String,
+      default: "This is my default profile",
     },
 
     skills: {
-        type: [String],
-    }
-}, {
+      type: [String],
+      default: [],
+    },
+  },
+  {
     timestamps: true,
+  }
+);
 
-});
+// ================= GENERATE JWT =================
 
+userSchema.methods.getJWT = function () {
+  return jwt.sign(
+    { _id: this._id },
+    process.env.JWT_SECRET || "DEV#@!infw%$87",
+    { expiresIn: "7d" }
+  );
+};
 
+// ================= VALIDATE PASSWORD =================
 
-userSchema.methods.getJWT = async function () {
-    const user = this;
-    const token = await Jwt.sign({ _id: user._id }, "DEV#@!infw%$87", {
-        expiresIn: "7d",
+userSchema.methods.validatePassword = async function (passwordInputByUser) {
+  return bcrypt.compare(passwordInputByUser, this.password);
+};
 
-    });
-    return token;
-}
-
-
-userSchema.methods.validatePassword = async function (password) {
-     const user = this;
-     const isPasswordValid = await bcrypt.compare(passwordInputByUser, passwordHash
-        
-     ); 
-    return isPasswordValid;
- };
 module.exports = mongoose.model("User", userSchema);

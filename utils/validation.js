@@ -1,14 +1,15 @@
 const validator = require("validator");
 
+// Validate signup data
 const validateSignUpData = (req) => {
-    const { firstName, lastName, emailId, password } = req.body;
+    const { firstName, emailId, password } = req.body;
 
-    if (!firstName || !lastName) {
-        throw new Error("Name not valid!");
+    if (!firstName || !emailId || !password) {
+        throw new Error("All required fields must be filled");
     }
 
     if (!validator.isEmail(emailId)) {
-        throw new Error("Email is not valid");
+        throw new Error("Invalid email address");
     }
 
     if (!validator.isStrongPassword(password)) {
@@ -16,27 +17,33 @@ const validateSignUpData = (req) => {
     }
 };
 
+// Validate profile edit data
 const validateEditProfileData = (req) => {
     const allowedEditFields = [
         "firstName",
         "lastName",
         "age",
         "gender",
-        "skills"
+        "skills",
+        "photoUrl",
+        "about"
     ];
 
-    const isEditAllowed = Object.keys(req.body).every((field) =>
-        allowedEditFields.includes(field)
+    const isEditAllowed = Object.keys(req.body).every(
+        (field) => allowedEditFields.includes(field)
     );
 
     if (!isEditAllowed) {
         throw new Error("Update not allowed");
     }
 
-    return true;
+    if (Object.keys(req.body).length === 0) {
+        throw new Error("Please provide at least one field to update");
+    }
 };
 
 module.exports = {
     validateSignUpData,
     validateEditProfileData
 };
+

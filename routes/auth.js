@@ -6,52 +6,63 @@ const jwt = require("jsonwebtoken");
 
 const AuthRouter = express.Router();
 
-
 // ================= SIGNUP =================
 
+
 AuthRouter.post("/signup", async (req, res) => {
-    try {
-        console.log("1. Request received");
-        console.log(req.body);
+  try {
+    validateSignUpData(req);
 
-        const {
-            firstName,
-            lastName,
-            emailId,
-            password
-        } = req.body;
+    const { firstName, lastName, emailId, password } = req.body;
 
-        console.log("2. Before bcrypt");
+    const existingUser = await User.findOne({ emailId });
 
-        const passwordHash = await bcrypt.hash(password, 10);
-
-        console.log("3. Bcrypt successful");
-
-        const user = new User({
-            firstName,
-            lastName,
-            emailId,
-            password: passwordHash
-        });
-
-        console.log("4. User object created");
-
-        await user.save();
-
-        console.log("5. User saved");
-
-        res.send("User added successfully");
-
-    } catch (err) {
-        console.log("SIGNUP ERROR:", err);
-        console.log(err.stack);
-
-        if (err.code === 11000) {
-            return res.status(400).send("Email already exists");
-        }
-
-        res.status(400).send("ERROR: " + err.message);
+    if (existingUser) {
+      return res.status(400).send("Email already exists");
     }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
+
+    await user.save();
+
+    // Create JWT — same as login
+    const token = jwt.sign(
+      { _id: user._id },
+      "DEV#@!infw%$87",
+      { expiresIn: "8h" }
+    );
+
+    // Set token cookie — same as login
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 8 * 60 * 60 * 1000,
+    });
+
+    // Remove password before returning user
+    const userWithoutPassword = user.toObject();
+    delete userWithoutPassword.password;
+
+    // Return user data like login
+    return res.status(201).json(userWithoutPassword);
+
+  } catch (err) {
+    console.log("SIGNUP ERROR:", err);
+
+    if (err.code === 11000) {
+      return res.status(400).send("Email already exists");
+    }
+
+    return res.status(400).send("ERROR: " + err.message);
+  }
 });
 
 
@@ -59,24 +70,27 @@ AuthRouter.post("/signup", async (req, res) => {
 
 AuthRouter.post("/login", async (req, res) => {
     try {
-
         const { emailId, password } = req.body;
 
-        // Find user
+        if (!emailId || !password) {
+            return res.status(400).send(
+                "Email and password are required"
+            );
+        }
+
         const user = await User.findOne({ emailId });
 
         if (!user) {
-            throw new Error("EmailId not present");
+            return res.status(400).send("EmailId not present");
         }
 
-        // Compare password
         const isPasswordValid = await bcrypt.compare(
             password,
             user.password
         );
 
         if (!isPasswordValid) {
-            throw new Error("Invalid password");
+            return res.status(400).send("Invalid password");
         }
 
         // Create JWT
@@ -86,26 +100,34 @@ AuthRouter.post("/login", async (req, res) => {
         );
 
         // Store token in cookie
-        res.cookie("token", token);
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: "lax"
+        });
 
-        res.send("Login successful");
+        // Remove password before sending user to frontend
+        const userWithoutPassword = user.toObject();
+        delete userWithoutPassword.password;
+
+        // Send user data to frontend
+        res.send(userWithoutPassword);
 
     } catch (err) {
-        res.status(400).send("ERROR: " + err.message);
+        console.log("LOGIN ERROR:", err);
+        res.status(500).send("Something went wrong");
     }
 });
-
 
 // ================= LOGOUT =================
 
 AuthRouter.post("/logout", (req, res) => {
-
     res.cookie("token", null, {
-        expires: new Date(Date.now())
+        httpOnly: true,
+        expires: new Date(0),
     });
 
     res.send("Logout successfully");
 });
-
 
 module.exports = AuthRouter;
