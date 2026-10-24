@@ -63,6 +63,7 @@ AuthRouter.post("/signup", async (req, res) => {
 
     return res.status(400).send("ERROR: " + err.message);
   }
+
 });
 
 
