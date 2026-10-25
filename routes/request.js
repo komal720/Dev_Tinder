@@ -69,6 +69,7 @@ requestRouter.post(
 );
 
 // REVIEW CONNECTION REQUEST
+
 requestRouter.post(
   "/request/review/:status/:requestId",
   userAuth,
@@ -78,10 +79,13 @@ requestRouter.post(
       const loggedInUser = req.user;
 
       if (!["accepted", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
+        return res.status(400).json({
+          message: "Invalid status",
+        });
       }
 
       console.log("Request ID received:", requestId);
+      console.log("Logged-in user ID:", String(loggedInUser._id));
 
       const connectionRequest =
         await ConnectionRequest.findById(requestId);
@@ -94,9 +98,25 @@ requestRouter.post(
         });
       }
 
+      console.log(
+        "Request sender ID:",
+        String(connectionRequest.fromUserId)
+      );
+
+      console.log(
+        "Request receiver ID:",
+        String(connectionRequest.toUserId)
+      );
+
+      console.log(
+        "Is receiver?",
+        String(connectionRequest.toUserId) ===
+          String(loggedInUser._id)
+      );
+
       if (
-        connectionRequest.toUserId.toString() !==
-        loggedInUser._id.toString()
+        String(connectionRequest.toUserId) !==
+        String(loggedInUser._id)
       ) {
         return res.status(403).json({
           message: "You are not allowed to review this request",
@@ -118,7 +138,10 @@ requestRouter.post(
       });
     } catch (err) {
       console.error("REVIEW REQUEST ERROR:", err);
-      return res.status(400).json({ message: err.message });
+
+      return res.status(500).json({
+        message: err.message,
+      });
     }
   }
 );

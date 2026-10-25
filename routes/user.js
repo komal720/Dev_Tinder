@@ -1,110 +1,118 @@
 
 const express = require("express");
-
-const userRouter = express.Router();
+const router = express.Router();
 
 const userAuth = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
 
+// ================= ALL / SENT REQUESTS =================
+router.get("/user/requests", userAuth, async (req, res) => {
+  try {
+    const requests = await ConnectionRequest.find({
+      fromUserId: req.user._id,
+      status: "interested",
+    }).select("fromUserId toUserId status");
+
+    res.status(200).json({
+      message: "Requests fetched successfully",
+      data: requests,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Error fetching requests",
+      error: err.message,
+    });
+  }
+});
+
+// ================= SENT REQUESTS =================
+router.get("/user/requests/sent", userAuth, async (req, res) => {
+  try {
+    const requests = await ConnectionRequest.find({
+      fromUserId: req.user._id,
+      status: "interested",
+    }).select("fromUserId toUserId status");
+
+    res.status(200).json({
+      message: "Sent requests fetched successfully",
+      data: requests,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // ================= RECEIVED REQUESTS =================
+router.get("/user/requests/received", userAuth, async (req, res) => {
+  try {
+    const requests = await ConnectionRequest.find({
+      toUserId: req.user._id,
+      status: "interested",
+    }).populate(
+      "fromUserId",
+      "firstName lastName emailId age gender photoUrl about skills"
+    );
 
-userRouter.get(
-  "/user/requests/received",
-  userAuth,
-  async (req, res) => {
-    try {
-      const loggedInUser = req.user;
+    res.status(200).json({
+      message: "Received requests fetched successfully",
+      data: requests,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Error fetching received requests: " + err.message,
+    });
+  }
+});
 
-      const connectionRequests = await ConnectionRequest.find({
-        toUserId: loggedInUser._id,
-        status: "interested",
-      }).populate(
+// ================= ACCEPTED CONNECTIONS =================
+router.get("/user/connections", userAuth, async (req, res) => {
+  try {
+    const id = req.user._id;
+
+    const connections = await ConnectionRequest.find({
+      $or: [
+        { toUserId: id, status: "accepted" },
+        { fromUserId: id, status: "accepted" },
+      ],
+    })
+      .populate(
         "fromUserId",
+        "firstName lastName emailId age gender photoUrl about skills"
+      )
+      .populate(
+        "toUserId",
         "firstName lastName emailId age gender photoUrl about skills"
       );
 
-      res.status(200).json({
-        message: "Data fetched successfully",
-        data: connectionRequests,
-      });
-    } catch (err) {
-      res.status(400).json({
-        message: "Error: " + err.message,
-      });
-    }
-  }
-);
+    const data = connections
+      .map((connection) => {
+        if (!connection.fromUserId || !connection.toUserId) {
+          return null;
+        }
 
-// ================= ACCEPTED CONNECTIONS =================
-
-userRouter.get(
-  "/user/connections",
-  userAuth,
-  async (req, res) => {
-    try {
-      const loggedInUser = req.user;
-
-      const connections = await ConnectionRequest.find({
-        $or: [
-          {
-            toUserId: loggedInUser._id,
-            status: "accepted",
-          },
-          {
-            fromUserId: loggedInUser._id,
-            status: "accepted",
-          },
-        ],
+        return connection.fromUserId._id.toString() === id.toString()
+          ? connection.toUserId
+          : connection.fromUserId;
       })
-        .populate(
-          "fromUserId",
-          "firstName lastName emailId age gender photoUrl about skills"
-        )
-        .populate(
-          "toUserId",
-          "firstName lastName emailId age gender photoUrl about skills"
-        );
+      .filter(Boolean);
 
-      const data = connections
-        .map((connection) => {
-          // Skip requests if either user document is missing
-          if (!connection.fromUserId || !connection.toUserId) {
-            return null;
-          }
-
-          // Return the other user's details
-          if (
-            connection.fromUserId._id.toString() ===
-            loggedInUser._id.toString()
-          ) {
-            return connection.toUserId;
-          }
-
-          return connection.fromUserId;
-        })
-        .filter(Boolean);
-
-      res.status(200).json({
-        message: "Connections fetched successfully",
-        data,
-      });
-    } catch (err) {
-      res.status(400).json({
-        message: "Error fetching connections: " + err.message,
-      });
-    }
+    res.status(200).json({
+      message: "Connections fetched successfully",
+      data,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Error fetching connections: " + err.message,
+    });
   }
-);
+});
 
 // ================= FEED =================
-
-userRouter.get("/feed", userAuth, async (req, res) => {
+router.get("/feed", userAuth, async (req, res) => {
   try {
-    const loggedInUser = req.user;
-
     const users = await User.find({
-      _id: { $ne: loggedInUser._id },
+      _id: { $ne: req.user._id },
     }).select(
       "firstName lastName emailId age gender photoUrl about skills"
     );
@@ -114,12 +122,10 @@ userRouter.get("/feed", userAuth, async (req, res) => {
       data: users,
     });
   } catch (err) {
-    res.status(400).json({
+    res.status(500).json({
       message: "Error fetching feed: " + err.message,
     });
   }
 });
 
-// ================= EXPORT ROUTER =================
-
-module.exports = userRouter;
+module.exports = router;
